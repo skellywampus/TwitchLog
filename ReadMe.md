@@ -39,8 +39,8 @@ TwitchLog is a compiled Python application that allows you to monitor chat messa
     - Close the application window to exit the program.
 
 ## Notes
-    - Uncompiled python file included for code auditing and modifications.
-
+    
+- Uncompiled python file included for code auditing and modifications.
 - A new OAuth token is required each time you run the application.
 - Ensure you have a stable internet connection while using the application to monitor Twitch chat.
 - DO NOT open the output file while the service is active. It will break the service until you stop and start it again.
