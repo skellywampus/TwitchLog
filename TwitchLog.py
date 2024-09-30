@@ -1,12 +1,12 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, scrolledtext
 import datetime
 import os
 import threading
-import time
 import webbrowser
-import pandas as pd
 import socket
+import queue
+import csv
 
 class TwitchChatGUI:
     def __init__(self):
@@ -16,7 +16,9 @@ class TwitchChatGUI:
         self.streamer_name = tk.StringVar()
         self.logged_in_user = None
         self.oauth_token = None
-        self.chat_monitor = None 
+        self.chat_monitor = None
+        self.message_queue = queue.Queue()
+        self.running = False
 
         self.create_widgets()
         self.root.protocol("WM_DELETE_WINDOW", self.close_application)
@@ -41,6 +43,9 @@ class TwitchChatGUI:
         self.stop_service_button = tk.Button(self.root, text="Stop Service", command=self.stop_service, state=tk.DISABLED)
         self.stop_service_button.grid(row=3, column=1, padx=10, pady=10, sticky='ew')
 
+        self.chat_display = scrolledtext.ScrolledText(self.root, state='disabled', wrap='word', height=10)
+        self.chat_display.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
+
     def login(self):
         self.logged_in_user = simpledialog.askstring("Log In", "Enter your Twitch username:")
         if self.logged_in_user:
@@ -57,14 +62,17 @@ class TwitchChatGUI:
     def start_service(self):
         streamer = self.streamer_name.get()
         if streamer and self.logged_in_user and self.oauth_token:
-            self.chat_monitor = TwitchChatMonitor(streamer, self.logged_in_user, self.oauth_token)
+            self.chat_monitor = TwitchChatMonitor(streamer, self.logged_in_user, self.oauth_token, self.message_queue)
             self.chat_monitor.start()
+            self.running = True
+            self.process_queue()
             self.start_service_button.config(state=tk.DISABLED)
             self.stop_service_button.config(state=tk.NORMAL)
         else:
             messagebox.showwarning("Missing Information", "Please log in and enter a streamer name to start the service.")
         
     def stop_service(self):
+        self.running = False
         if self.chat_monitor:
             self.chat_monitor.stop()
             self.start_service_button.config(state=tk.NORMAL)
@@ -80,13 +88,25 @@ class TwitchChatGUI:
             self.login_button.config(state=tk.NORMAL)
             self.logout_button.config(state=tk.DISABLED)
 
+    def process_queue(self):
+        while not self.message_queue.empty():
+            streamer, username, timestamp, message = self.message_queue.get()
+            self.chat_display.config(state='normal')
+            self.chat_display.insert(tk.END, f"[{timestamp}] {username}: {message}\n")
+            self.chat_display.yview(tk.END)
+            self.chat_display.config(state='disabled')
+            save_chat_message(streamer, username, timestamp, message)
+        if self.running:
+            self.root.after(100, self.process_queue)
+
     def close_application(self):
+        self.running = False
         if self.chat_monitor and self.chat_monitor.running:
             self.stop_service()  
         self.root.quit()
 
 class TwitchChatMonitor:
-    def __init__(self, streamer, username, token):
+    def __init__(self, streamer, username, token, message_queue):
         self.server = 'irc.chat.twitch.tv'
         self.port = 6667
         self.nickname = username
@@ -95,6 +115,7 @@ class TwitchChatMonitor:
         self.streamer = streamer
         self.running = False
         self.sock = None
+        self.message_queue = message_queue
 
     def start(self):
         self.running = True
@@ -127,7 +148,9 @@ class TwitchChatMonitor:
                 except socket.error as e:
                     print(f"Socket error: {e}")
                     self.stop()
-                time.sleep(1)
+                except Exception as e:
+                    print(f"Unexpected error: {e}")
+                    self.stop()
         except Exception as e:
             print(f"Connection error: {e}")
         finally:
@@ -144,7 +167,7 @@ class TwitchChatMonitor:
         username = parts[1].split('!')[0]
         message = parts[2].strip()
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        save_chat_message(self.streamer, username, timestamp, message)
+        self.message_queue.put((self.streamer, username, timestamp, message))
 
 def create_twitch_chats_folder():
     documents_path = os.path.expanduser("~/Documents")
@@ -157,15 +180,14 @@ def save_chat_message(streamer, username, timestamp, message):
     filename = f"{streamer}.csv"
     filepath = os.path.join(os.path.expanduser("~/Documents/Twitch_Chats"), filename)
 
-    if os.path.exists(filepath):
-        df = pd.read_csv(filepath)
-    else:
-        df = pd.DataFrame(columns=["Username", "Time", "Message"])
+    file_exists = os.path.exists(filepath)
 
-    new_row = pd.DataFrame({"Username": [username], "Time": [timestamp], "Message": [message]})
-    df = pd.concat([df, new_row], ignore_index=True)
-
-    df.to_csv(filepath, index=False)
+    with open(filepath, 'a', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['Username', 'Time', 'Message']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow({'Username': username, 'Time': timestamp, 'Message': message})
 
 if __name__ == "__main__":
     TwitchChatGUI()
