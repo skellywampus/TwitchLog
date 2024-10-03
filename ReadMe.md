@@ -1,3 +1,5 @@
+![Screenshot](http://full/path/to/img.jpg](https://github.com/skellywampus/TwitchLog/blob/main/twitchLogScreenshot.png "Screenshot")
+
 # TwitchLog
 
 TwitchLog is a compiled Python application that allows you to monitor chat messages from a specified Twitch streamer's channel. The chat messages are logged into a CSV file with the username, timestamp, and message content.
