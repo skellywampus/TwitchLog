@@ -1,4 +1,4 @@
-![Screenshot](http://full/path/to/img.jpg](https://github.com/skellywampus/TwitchLog/blob/main/twitchLogScreenshot.png "Screenshot")
+![Screenshot](https://github.com/skellywampus/TwitchLog/blob/main/twitchLogScreenshot.png "Screenshot")
 
 # TwitchLog
 
