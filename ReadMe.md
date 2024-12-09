@@ -1,3 +1,5 @@
+# THIS IS CURRENTLY NON-FUNCTIONAL DUE TO TWITCHAPPS UPDATE
+
 ![Screenshot](https://github.com/skellywampus/TwitchLog/blob/main/twitchLogScreenshot.png "Screenshot")
 
 # TwitchLog
